@@ -1,0 +1,4 @@
+litserve
+requests
+streamlit==1.42.0
+uvicorn

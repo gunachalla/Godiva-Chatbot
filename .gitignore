@@ -1,0 +1,38 @@
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore compiled files
+*.o
+*.out
+*.class
+*.pyc
+*.exe
+*.dll
+
+# Ignore logs and temp files
+*.log
+*.tmp
+*.swp
+
+# Virtual environment
+venv/
+__pycache__/
+*.pyc
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Environment variables and secrets
+.env
+
+/logs/
+download/
+
+*.sh
+*.err
+*.out
+
+*.csv
+
+*.gitignore
