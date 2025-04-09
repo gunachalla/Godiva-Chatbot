@@ -5,7 +5,7 @@ import litserve as ls
 import copy
 
 # Use the same configuration as your original API
-BASE_API_URL = "http://10.172.0.223:7898"
+BASE_API_URL = "http://94.56.105.18:7898"
 FLOW_ID = "e1f7e7f9-9f59-4c88-b64e-a6430836f311"
 ENDPOINT = "dxr-rag-godiva"
 
