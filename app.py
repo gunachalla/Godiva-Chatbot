@@ -14,17 +14,50 @@ st.set_page_config(
 )
 
 
-
-# Start the chat server (chat_server.py) as a background process.
+# Start the chat server with health checks
 @st.cache_resource
 def start_chat_api():
-    proc = subprocess.Popen([sys.executable, "chat_server.py"])
-    time.sleep(5)  # Allow time for the server to initialize.
-    return proc
+    try:
+        # Start server with output capture
+        proc = subprocess.Popen([sys.executable, "chat_server.py"],
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE,
+                               text=True)
+        
+        # Wait for server to become ready
+        start_time = time.time()
+        server_ready = False
+        
+        with st.spinner("Starting chat server..."):
+            while (time.time() - start_time) < 30:  # 30-second timeout
+                try:
+                    # Try hitting health endpoint
+                    response = requests.get("http://localhost:8001/health", timeout=2)
+                    if response.status_code == 200:
+                        server_ready = True
+                        break
+                except (requests.ConnectionError, requests.Timeout):
+                    pass  # Server not ready yet
+                time.sleep(2)  # Check every 2 seconds
+
+        if not server_ready:
+            # Show error details
+            st.error(f"""
+                ⚠️ Chat server failed to start within 30 seconds!
+                Server status: {'running' if proc.poll() is None else 'stopped'}
+                Error logs: {proc.stderr.read()}
+            """)
+            st.stop()
+        
+        return proc
+
+    except Exception as e:
+        st.error(f"🚨 Critical server error: {str(e)}")
+        st.stop()
 
 chat_api_proc = start_chat_api()
 
-# API URL – ensure this matches the port defined in chat_server.py.
+# API configuration
 API_URL = "http://localhost:8001/predict"
 
 # Initialize session state for ongoing messages and conversation history.
