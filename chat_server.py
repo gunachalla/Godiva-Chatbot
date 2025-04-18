@@ -13,126 +13,24 @@ async def health_check():
     return {"status": "ready", "service": "chat_api"}
 
 # Use the same configuration as your original API
-BASE_API_URL = "http://10.172.0.223:7898"
+BASE_API_URL = "http://94.56.105.18:7898"
 FLOW_ID = "e1f7e7f9-9f59-4c88-b64e-a6430836f311"
 ENDPOINT = "dxr-rag-godiva"
 
 # Use the original TWEAKS configuration from your API
 TWEAKS = {
-  "ChatInput-8fGO2": {
-    "files": "",
-    "background_color": "",
-    "chat_icon": "",
-    "input_value": "",
-    "sender": "User",
-    "sender_name": "User",
-    "session_id": "",
-    "should_store_message": True,
-    "text_color": ""
-  },
-  "Milvus-tbjwD": {
-    "collection_description": "web scraped data from godiva",
-    "collection_name": "godiva_json",
-    "connection_args": {},
-    "consistency_level": "Strong",
-    "drop_old": False,
-    "index_params": {},
-    "number_of_results": 3,
-    "password": "Milvus Token",
-    "primary_field": "pk",
-    "search_params": {},
-    "search_query": "",
-    "text_field": "content",
-    "timeout": None,
-    "uri": "Milvus URL",
-    "vector_field": "vector"
-  },
-  "Prompt-Ciphp": {
-    "template": "Answer the user’s question using the most recent and relevant information from the provided context.\n\n- Prioritise the current context over previous conversation history.\n- Use conversation history only if it directly supports the current topic or entity (e.g., named child or case).\n- If the conversation has shifted to a new case, do not carry over assumptions from earlier discussions.\n- If unclear, ask the user for clarification instead of guessing.\n\nQuestion: {question}  \nContext: {context}  \nConversation History: {conversation_history}",
-    "tool_placeholder": "",
-    "question": "",
-    "conversation_history": "",
-    "context": ""
-  },
-  "Memory-3Qm7y": {
-    "n_messages": 100,
-    "order": "Ascending",
-    "sender": "Machine and User",
-    "sender_name": "",
-    "session_id": "",
-    "template": "{sender_name}: {text}"
-  },
-  "ParseData-FAWPR": {
-    "sep": "\n",
-    "template": "{text} , {title}"
-  },
-  "ChatOutput-TR3Kc": {
-    "background_color": "",
-    "chat_icon": "",
-    "clean_data": False,
-    "data_template": "{text}",
-    "sender": "Machine",
-    "sender_name": "AI Assistant",
-    "session_id": "",
-    "should_store_message": True,
-    "text_color": ""
-  },
-  "OllamaEmbeddings-EarNo": {
-    "base_url": "Ollama URL",
-    "model_name": "nomic-embed-text:latest"
-  },
-  "OllamaModel-RdzdC": {
-    "base_url": "Ollama URL",
-    "format": "",
-    "input_value": "",
-    "metadata": {},
-    "mirostat": "Disabled",
-    "mirostat_eta": None,
-    "mirostat_tau": None,
-    "model_name": "llama3.3:latest",
-    "num_ctx": None,
-    "num_gpu": None,
-    "num_thread": None,
-    "repeat_last_n": None,
-    "repeat_penalty": None,
-    "stop_tokens": "",
-    "stream": False,
-    "system": "",
-    "system_message": "# Godiva Wealth Management AI Assistant System Prompt  \n\n## Role  \nYou are an AI assistant representing **Godiva Wealth Management** (developed by BIKAL TECH UK), providing **evidence-based financial guidance** strictly from Godiva’s official documents. Specializations:  \n- Pensions & Retirement Planning  \n- Investments & Savings Strategies  \n- Wealth Management, Inheritance, Tax & Trust Planning  \n\n---\n\n## Guidelines  \n\n### 1. Evidence-Based Responses  \n- **Only use verified information** from Godiva’s documents or knowledge base.  \n- **Never speculate, infer, or use external knowledge.**  \n- Example: If asked about \"ETFs\" with no supporting documents, respond: *\"No relevant information found.\"*  \n\n### 2. Source Attribution  \n- **Predefined Hyperlinks** (use where applicable):  \n  - [Pensions & Retirement Planning](https://godiva-wealth.management/pensions-and-retirement/)  \n  - [Investments & Savings Strategies](https://godiva-wealth.management/investments-savings/)  \n  - [Tax & Trust Planning](https://godiva-wealth.management/tax-and-trust-planning/)  \n- For internal documents:  \n  *“Based on Godiva Wealth Management’s [Document Title].”*  \n\n### 3. Scope Enforcement  \n- **Decline non-financial requests immediately**:  \n  > *“I specialize in Godiva’s financial guidance only. For other topics, contact BIKAL TECH UK.”*  \n- **Never engage with sensitive/private data** (e.g., account details).  \n\n### 4. No-Information Protocol  \n- If no relevant documents exist:  \n  > *“No information is available. Contact Godiva at [01926 298567](tel:+441926298567) or [info@godiva-wealth.management](mailto:info@godiva-wealth.management).”*  \n\n### 5. Mandatory Disclaimer  \nInclude in **every response**:  \n> *“This is general information, not personalised advice. Consult a Godiva advisor for your situation.”*  \n\n---\n\n## Contact Information  \n- **Telephone**: [01926 298567](tel:+441926298567)  \n- **Email**: [info@godiva-wealth.management](mailto:info@godiva-wealth.management)  \n- **Business Hours**: Monday–Friday, 09:00–17:00  \n\n---\n\n## Examples  \n\n### User: How should I invest $5,000?  \n**AI**: Godiva Wealth Management tailors strategies to individual risk profiles. For lump-sum investments, see [Investments & Savings Strategies](https://godiva-wealth.management/investments-savings/) or contact an advisor at [01926 298567](tel:+441926298567). *This is general information, not personalised advice.*  \n\n### User: Write a retirement poem.  \n**AI**: I specialize in Godiva’s financial guidance. For creative requests, contact BIKAL TECH UK.  \n\n### User: What’s Godiva’s ISA policy?  \n**AI**: No relevant information found. Contact Godiva at [01926 298567](tel:+441926298567).  ",
-    "tags": "",
-    "temperature": 0.18,
-    "template": "",
-    "tfs_z": None,
-    "timeout": None,
-    "tool_model_enabled": False,
-    "top_k": None,
-    "top_p": None,
-    "verbose": False
-  },
-  "TextInput-uI2CW": {
-    "input_value": "eminem"
-  },
-  "RedisChatMemory-03Kf3": {
-    "database": "9",
-    "host": "Redis URL",
-    "key_prefix": "",
-    "password": "",
-    "port": 6380,
-    "session_id": "",
-    "username": ""
-  },
-  "StoreMessage-MfcnZ": {
-    "message": "",
-    "sender": "",
-    "sender_name": "",
-    "session_id": ""
-  },
-  "StoreMessage-ar6CI": {
-    "message": "",
-    "sender": "",
-    "sender_name": "",
-    "session_id": ""
-  }
+  "ChatInput-8fGO2": {},
+  "Milvus-tbjwD": {},
+  "Prompt-Ciphp": {},
+  "Memory-3Qm7y": {},
+  "ParseData-FAWPR": {},
+  "ChatOutput-TR3Kc": {},
+  "OllamaEmbeddings-EarNo": {},
+  "OllamaModel-RdzdC": {},
+  "TextInput-uI2CW": {},
+  "RedisChatMemory-03Kf3": {},
+  "StoreMessage-MfcnZ": {},
+  "StoreMessage-ar6CI": {}
 }
 
 
@@ -199,4 +97,4 @@ class ChatLitAPI(ls.LitAPI):
 
 if __name__ == "__main__":
     server = ls.LitServer(ChatLitAPI(), accelerator="auto", max_batch_size=1)
-    server.run(port=8001)
+    server.run(port=7898)
