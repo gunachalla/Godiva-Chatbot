@@ -11,12 +11,10 @@ app = FastAPI()
 async def health_check():
     return {"status": "ready", "service": "chat_api"}
 
-# Use the same configuration as your original API
-BASE_API_URL = "http://94.56.105.18:7898"  # Consider changing to internal IP when running locally
+BASE_API_URL = "http://94.56.105.18:7898"  # Update IP if needed
 FLOW_ID = "e1f7e7f9-9f59-4c88-b64e-a6430836f311"
 ENDPOINT = "dxr-rag-godiva"
 
-# Use the original TWEAKS configuration from your API
 TWEAKS = {
   "ChatInput-8fGO2": {},
   "Milvus-tbjwD": {},
@@ -40,38 +38,30 @@ class ChatLitAPI(ls.LitAPI):
         logging.info(f"ChatLitAPI initialized on device: {device}")
 
     def decode_request(self, request):
-        # Extract query and session_id from request
         query = request.get("query", "")
-        # Get session ID from request or generate a new one
+        # Get session_id from request or generate new
         session_id = request.get("session_id", str(uuid4()))
-        
         logging.info(f"Received request with session_id: {session_id}")
-        
-        return {
-            "query": query,
-            "session_id": session_id
-        }
+        return {"query": query, "session_id": session_id}
 
     def predict(self, input_data):
         query = input_data.get("query", "")
         session_id = input_data.get("session_id", "")
-        
         logging.info(f"Processing query with session_id: {session_id}")
-        
-        # Update tweaks with query and session ID
+
         updated_tweaks = copy.deepcopy(TWEAKS)
-        updated_tweaks["ChatInput-8fGO2"].update({
-            "input_value": query,
-            "session_id": session_id  # Pass session ID to Langflow
-        })
         
+        # Key change: Assign inputs to correct components
+        updated_tweaks["ChatInput-8fGO2"]["input_value"] = query  # User message to ChatInput
+        updated_tweaks["TextInput-uI2CW"]["input_value"] = session_id  # Session ID to TextInput
+
         payload = {
             "output_type": "chat",
             "input_type": "chat",
             "tweaks": updated_tweaks,
-            "session_id": session_id  # Include session ID at top level too
+            "session_id": session_id  # Maintain top-level session ID
         }
-        
+
         api_url = f"{BASE_API_URL}/api/v1/run/{ENDPOINT}"
         
         try:
@@ -82,7 +72,6 @@ class ChatLitAPI(ls.LitAPI):
             
             logging.info(f"Received response from Langflow for session_id: {session_id}")
             
-            # Extract the response text
             if "outputs" in response_data:
                 return {"bot_response": response_data["outputs"][0]["outputs"][0]["results"]["message"]["text"]}
             return {"bot_response": "No valid response found."}
