@@ -200,12 +200,6 @@ if user_input:
     # Function to fetch API response with session ID
     response_container = {"response": None}
     def fetch_response():
-
-        if response.status_code == 200:
-            if "error" in response.json():
-                response_container["response"] = f"System Error: {response.json()['error']}"
-            else:
-                response_container["response"] = response.json().get("response", "...")
                 
         try:
             # Send the current session ID with the request
