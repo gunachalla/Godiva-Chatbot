@@ -32,7 +32,7 @@ def start_chat_api():
             while (time.time() - start_time) < 30:  # 30-second timeout
                 try:
                     # Try hitting health endpoint
-                    response = requests.get("http://localhost:8001/health", timeout=2)
+                    response = requests.get("http://localhost:7898/health", timeout=2)
                     if response.status_code == 200:
                         server_ready = True
                         break
@@ -58,7 +58,7 @@ def start_chat_api():
 chat_api_proc = start_chat_api()
 
 # API configuration
-API_URL = "http://localhost:8001/predict"
+API_URL = "http://localhost:7898/predict"
 
 # Initialize session state for ongoing messages and conversation history.
 if "messages" not in st.session_state:
