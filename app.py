@@ -4,7 +4,7 @@ import subprocess
 import sys
 import time
 import threading
-
+import uuid
 
 # Set Streamlit page configuration.
 st.set_page_config(
@@ -69,6 +69,10 @@ if "template_used" not in st.session_state:
     st.session_state["template_used"] = False  # Track if a template was clicked.
 if "pending_input" not in st.session_state:
     st.session_state["pending_input"] = None  # Store template question to process
+if "current_session_id" not in st.session_state:
+    st.session_state["current_session_id"] = str(uuid.uuid4())  # Generate unique session ID
+if "session_ids" not in st.session_state:
+    st.session_state["session_ids"] = {}  # Map conversation index to session ID
 
 # Template questions (only show if no chat has started)
 template_questions = [
@@ -110,13 +114,6 @@ with st.sidebar:
     st.markdown("### Powered by:")
     st.image("dialogXR_Typography.png", width=300)
     
-    # Additional Logos: Intel/Lenovo and BIKAL.
-    #st.markdown(
-       # """<p style="margin-top:1rem; margin-bottom:0.5rem; font-size: 1.1rem; font-weight: bold;">AI powered by</p>""",
-        #unsafe_allow_html=True
-    #)
-    #st.image("intel_lenovo_cropped.png", width=250)
-    
     st.markdown(
         """<p style="margin-top:1rem; margin-bottom:0.5rem; font-size: 1.1rem; font-weight: bold;">Designed by</p>""",
         unsafe_allow_html=True
@@ -136,19 +133,32 @@ with st.sidebar:
                 col1, col2 = st.columns(2)
                 with col1:
                     if st.button("Load", key=f"load_{idx}"):
+                        # Load both messages and session ID
                         st.session_state["messages"] = conv.copy()
+                        if idx in st.session_state["session_ids"]:
+                            st.session_state["current_session_id"] = st.session_state["session_ids"][idx]
+                        st.rerun()
                 with col2:
                     if st.button("Delete", key=f"delete_{idx}"):
                         st.session_state["chat_history"].pop(idx - 1)
+                        # Also remove the session ID mapping
+                        if idx in st.session_state["session_ids"]:
+                            del st.session_state["session_ids"][idx]
                         st.rerun()
     else:
         st.info("No previous conversations stored.")
     
     if st.button("🆕 New Chat"):
         if st.session_state["messages"]:
+            # Store current conversation with its session ID
+            new_idx = len(st.session_state["chat_history"]) + 1
             st.session_state["chat_history"].append(st.session_state["messages"].copy())
+            st.session_state["session_ids"][new_idx] = st.session_state["current_session_id"]
+        
+        # Create new conversation with new session ID
         st.session_state["messages"] = []
         st.session_state["template_used"] = False  # Reset template visibility
+        st.session_state["current_session_id"] = str(uuid.uuid4())  # Generate new session ID
         st.rerun()
 
 # Main chat interface.
@@ -187,14 +197,24 @@ if user_input:
     assistant_message = st.chat_message("assistant")
     response_placeholder = assistant_message.empty()
 
-    # Function to fetch API response.
+    # Function to fetch API response with session ID
     response_container = {"response": None}
     def fetch_response():
         try:
-            response = requests.post(API_URL, json={"query": user_input}, timeout=90)
+            # Send the current session ID with the request
+            payload = {
+                "query": user_input,
+                "session_id": st.session_state["current_session_id"]  # Include session ID
+            }
+            
+            # Debug: Add session ID logging
+            print(f"Sending request with session_id: {st.session_state['current_session_id']}")
+            
+            response = requests.post(API_URL, json=payload, timeout=90)
             response.raise_for_status()
             response_container["response"] = response.json().get("response", "Service is currently under maintenance. Please try again later.")
-        except Exception:
+        except Exception as e:
+            print(f"API Error: {str(e)}")
             response_container["response"] = "Service is currently under maintenance. Please try again later."
 
     # Start API request in a separate thread.
@@ -204,11 +224,11 @@ if user_input:
     # Show first two spinners with fixed time.
     with response_placeholder:
         with st.spinner("Analyzing the question..."):
-            time.sleep(3)  # Fixed 5 seconds
+            time.sleep(3)  # Fixed 3 seconds
         with st.spinner("Thinking..."):
-            time.sleep(3)  # Fixed 5 seconds
+            time.sleep(3)  # Fixed 3 seconds
         with st.spinner("Constructing response..."):
-            time.sleep(2)  # Fixed 5 seconds
+            time.sleep(2)  # Fixed 2 seconds
 
         # Infinite spinner for "Generating response..." until API returns.
         generating_spinner = response_placeholder.empty()
