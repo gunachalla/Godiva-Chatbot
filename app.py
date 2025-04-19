@@ -89,7 +89,6 @@ if "template_used" not in st.session_state:
     st.session_state.template_used = False
 if "current_session_id" not in st.session_state:
     st.session_state.current_session_id = str(uuid.uuid4())
-    logger.info(f"Created new session ID: {st.session_state.current_session_id}")
 if "session_map" not in st.session_state:
     st.session_state.session_map = {}  # {conversation_index: session_id}
 if "error_count" not in st.session_state:
