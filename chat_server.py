@@ -1,4 +1,3 @@
-
 from uuid import uuid4
 import logging
 import requests
@@ -134,22 +133,28 @@ TWEAKS = {
   }
 }
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger("chat_server")
 
 class ChatLitAPI(ls.LitAPI):
     def setup(self, device):
         self.device = device
-        logging.info(f"ChatLitAPI initialized on {device}")
+        logger.info(f"ChatLitAPI initialized on {device}")
 
     def decode_request(self, request):
+        session_id = request.get("session_id", str(uuid4()))
+        query = request.get("query", "")
+        logger.info(f"Received request with session_id: {session_id}, query: {query[:50]}...")
         return {
-            "query": request.get("query", ""),
-            "session_id": request.get("session_id", str(uuid4()))
+            "query": query,
+            "session_id": session_id
         }
 
     def predict(self, input_data):
         session_id = input_data["session_id"]
         query = input_data["query"]
+        
+        logger.info(f"Processing request - Session ID: {session_id}, Query: {query[:50]}...")
         
         updated_tweaks = copy.deepcopy(TWEAKS)
         
@@ -169,6 +174,22 @@ class ChatLitAPI(ls.LitAPI):
             "Memory-3Qm7y": {
                 **TWEAKS["Memory-3Qm7y"],
                 "session_id": session_id
+            },
+            "ChatOutput-TR3Kc": {
+                **TWEAKS["ChatOutput-TR3Kc"],
+                "session_id": session_id
+            },
+            "TextInput-uI2CW": {
+                **TWEAKS["TextInput-uI2CW"],
+                "input_value": session_id
+            },
+            "StoreMessage-MfcnZ": {
+                **TWEAKS["StoreMessage-MfcnZ"],
+                "session_id": session_id
+            },
+            "StoreMessage-ar6CI": {
+                **TWEAKS["StoreMessage-ar6CI"],
+                "session_id": session_id
             }
         })
 
@@ -179,6 +200,8 @@ class ChatLitAPI(ls.LitAPI):
         }
 
         try:
+            logger.info(f"Sending request to API: {BASE_API_URL}/api/v1/run/{ENDPOINT}")
+            
             response = requests.post(
                 f"{BASE_API_URL}/api/v1/run/{ENDPOINT}",
                 json=payload,
@@ -186,20 +209,61 @@ class ChatLitAPI(ls.LitAPI):
             )
             response.raise_for_status()
             
+            # Log the raw response for debugging
+            logger.info(f"Raw API response status: {response.status_code}")
+            logger.debug(f"Raw API response: {response.text[:200]}...")
             
-            return {"bot_response": processed_response}
+            # Process the response
+            response_data = response.json()
             
+            # Add more flexible response parsing
+            if "data" in response_data and "text" in response_data["data"]:
+                bot_response = response_data["data"]["text"]
+            elif "output" in response_data:
+                bot_response = response_data["output"]
+            elif "response" in response_data:
+                bot_response = response_data["response"]
+            elif "message" in response_data:
+                bot_response = response_data["message"]
+            else:
+                # Try to extract any text value we can find
+                if isinstance(response_data, dict):
+                    for key, value in response_data.items():
+                        if isinstance(value, str) and len(value) > 10:
+                            bot_response = value
+                            logger.info(f"Found potential response in key: {key}")
+                            break
+                    else:
+                        # If no suitable text found, log the error
+                        logger.error(f"Unexpected response structure: {response_data}")
+                        bot_response = "Response format error. Please check server logs."
+                else:
+                    bot_response = str(response_data)
+            
+            logger.info(f"Processed bot response: {bot_response[:50]}...")
+            return {"bot_response": bot_response}
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"API request error - Session {session_id}: {str(e)}")
+            return {"error": f"Service unavailable: {str(e)}"}
+        except ValueError as e:
+            logger.error(f"JSON parsing error - Session {session_id}: {str(e)}")
+            return {"error": "Invalid response format"}
         except Exception as e:
-            logging.error(f"Session {session_id} error: {str(e)}")
-            return {"error": "Service unavailable"}
+            logger.error(f"Unexpected error - Session {session_id}: {str(e)}")
+            return {"error": f"Service error: {str(e)}"}
 
     def encode_response(self, output):
-        return {"response": output.get("bot_response", "Error")}
+        response = output.get("bot_response", output.get("error", "Unknown error"))
+        logger.info(f"Sending response: {response[:50]}...")
+        return {"response": response}
 
 if __name__ == "__main__":
+    logger.info("Starting ChatLitAPI server...")
     server = ls.LitServer(
         ChatLitAPI(),
         accelerator="auto",
         timeout=300
     )
+    logger.info(f"Server configured with timeout: 300 seconds")
     server.run(port=7898)
