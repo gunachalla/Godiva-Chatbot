@@ -6,53 +6,48 @@ import time
 import threading
 import uuid
 
-# Set Streamlit page configuration.
+# Set Streamlit page configuration
 st.set_page_config(
     page_title="DialogXR Godiva Chatbot",
     page_icon="dialogXR_Icon.png",
     layout="wide"
 )
 
-
-# Start the chat server with health checks
+# Server management functions
 @st.cache_resource
 def start_chat_api():
     try:
-        # Start server with output capture
         proc = subprocess.Popen([sys.executable, "chat_server.py"],
                                stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE,
                                text=True)
         
-        # Wait for server to become ready
         start_time = time.time()
         server_ready = False
         
-        with st.spinner("Starting chat server..."):
-            while (time.time() - start_time) < 30:  # 30-second timeout
+        with st.spinner("🚀 Starting chat server..."):
+            while (time.time() - start_time) < 30:
                 try:
-                    # Try hitting health endpoint
                     response = requests.get("http://localhost:7898/health", timeout=2)
                     if response.status_code == 200:
                         server_ready = True
                         break
                 except (requests.ConnectionError, requests.Timeout):
-                    pass  # Server not ready yet
-                time.sleep(2)  # Check every 2 seconds
+                    pass
+                time.sleep(2)
 
         if not server_ready:
-            # Show error details
             st.error(f"""
-                ⚠️ Chat server failed to start within 30 seconds!
-                Server status: {'running' if proc.poll() is None else 'stopped'}
-                Error logs: {proc.stderr.read()}
+                ⚠️ Server startup failed!
+                Status: {'running' if proc.poll() is None else 'stopped'}
+                Error: {proc.stderr.read()}
             """)
             st.stop()
         
         return proc
 
     except Exception as e:
-        st.error(f"🚨 Critical server error: {str(e)}")
+        st.error(f"🚨 Critical error: {str(e)}")
         st.stop()
 
 chat_api_proc = start_chat_api()
@@ -60,69 +55,52 @@ chat_api_proc = start_chat_api()
 # API configuration
 API_URL = "http://localhost:7898/predict"
 
-# Initialize session state for ongoing messages and conversation history.
+# Session state initialization
 if "messages" not in st.session_state:
-    st.session_state["messages"] = []  # Active conversation.
+    st.session_state.messages = []
 if "chat_history" not in st.session_state:
-    st.session_state["chat_history"] = []  # Archived conversations.
+    st.session_state.chat_history = []
 if "template_used" not in st.session_state:
-    st.session_state["template_used"] = False  # Track if a template was clicked.
-if "pending_input" not in st.session_state:
-    st.session_state["pending_input"] = None  # Store template question to process
+    st.session_state.template_used = False
 if "current_session_id" not in st.session_state:
-    st.session_state["current_session_id"] = str(uuid.uuid4())  # Generate unique session ID
-if "session_ids" not in st.session_state:
-    st.session_state["session_ids"] = {}  # Map conversation index to session ID
+    st.session_state.current_session_id = str(uuid.uuid4())
+if "session_map" not in st.session_state:
+    st.session_state.session_map = {}  # {conversation_index: session_id}
 
-# Template questions (only show if no chat has started)
+# Template questions
 template_questions = [
     "Can you explain Godiva's approach to creating tax-efficient retirement income strategies?",
     "What investment strategies does Godiva recommend for preserving wealth across generations?",
     "How does Godiva's wealth management service address inheritance tax planning?",
-    "What are the key considerations in Godiva's pension transfer advisory process?",
-    "How does Godiva balance risk and return in long-term investment portfolios?",
-    "What tax-efficient savings vehicles does Godiva recommend for high-net-worth individuals?",
-    "How does Godiva's trust planning service protect family assets?",
-    "What ethical investment options are available through Godiva's portfolios?",
-    "How does Godiva help clients navigate complex cross-border wealth management scenarios?",
-    "What strategies does Godiva employ to safeguard investments during market volatility?"
+    # ... (other template questions)
 ]
 
-# Optional custom CSS for template question styling.
+# UI styling
 st.markdown("""
     <style>
     .template-box {
-        background-color: #018926;  /* NSPCC Accessible Green */
+        background-color: #018926;
         padding: 12px;
         border-radius: 8px;
-        font-size: 16px;
-        font-style: italic;
-        color: #FFFFFF;  /* White Font */
+        color: #FFFFFF;
         text-align: center;
-        font-weight: bold;
         margin-bottom: 10px;
     }
+    .stButton>button {
+        width: 100%;
+    }
     </style>
-    """, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
-# Sidebar: Branding, logos, conversation history, and control buttons.
+# Sidebar components
 with st.sidebar:
     st.title("🤖 Godiva Wealth Management Chatbot")
-    # st.write("Developed by BIKAL Technologies UK")
-    
-    # Primary Branding: DialogXR logo.
-    st.markdown("### Powered by:")
     st.image("dialogXR_Typography.png", width=300)
-    
-    st.markdown(
-        """<p style="margin-top:1rem; margin-bottom:0.5rem; font-size: 1.1rem; font-weight: bold;">Designed by</p>""",
-        unsafe_allow_html=True
-    )
     st.image("Bikal_logo.svg", width=120)
     
     st.markdown("### Conversation History")
-    if st.session_state["chat_history"]:
-        for idx, conv in enumerate(st.session_state["chat_history"], 1):
+    if st.session_state.chat_history:
+        for idx, (conv, session_id) in enumerate(st.session_state.chat_history, 1):
             with st.expander(f"Conversation {idx}", expanded=False):
                 preview = conv[-2:] if len(conv) >= 2 else conv
                 preview_html = "<div style='font-size:12px; max-width:200px;'>"
@@ -130,121 +108,115 @@ with st.sidebar:
                     preview_html += f"<p><strong>{msg['role'].capitalize()}:</strong> {msg['content']}</p>"
                 preview_html += "</div>"
                 st.markdown(preview_html, unsafe_allow_html=True)
+                
                 col1, col2 = st.columns(2)
                 with col1:
                     if st.button("Load", key=f"load_{idx}"):
-                        # Load both messages and session ID
-                        st.session_state["messages"] = conv.copy()
-                        if idx in st.session_state["session_ids"]:
-                            st.session_state["current_session_id"] = st.session_state["session_ids"][idx]
+                        st.session_state.messages = conv.copy()
+                        st.session_state.current_session_id = session_id
                         st.rerun()
                 with col2:
                     if st.button("Delete", key=f"delete_{idx}"):
-                        st.session_state["chat_history"].pop(idx - 1)
-                        # Also remove the session ID mapping
-                        if idx in st.session_state["session_ids"]:
-                            del st.session_state["session_ids"][idx]
+                        del st.session_state.chat_history[idx-1]
+                        del st.session_state.session_map[idx]
                         st.rerun()
     else:
-        st.info("No previous conversations stored.")
+        st.info("No previous conversations")
     
     if st.button("🆕 New Chat"):
-        if st.session_state["messages"]:
-            # Store current conversation with its session ID
-            new_idx = len(st.session_state["chat_history"]) + 1
-            st.session_state["chat_history"].append(st.session_state["messages"].copy())
-            st.session_state["session_ids"][new_idx] = st.session_state["current_session_id"]
+        if st.session_state.messages:
+            new_idx = len(st.session_state.chat_history) + 1
+            st.session_state.chat_history.append(
+                (st.session_state.messages.copy(), 
+                 st.session_state.current_session_id)
+            )
+            st.session_state.session_map[new_idx] = st.session_state.current_session_id
         
-        # Create new conversation with new session ID
-        st.session_state["messages"] = []
-        st.session_state["template_used"] = False  # Reset template visibility
-        st.session_state["current_session_id"] = str(uuid.uuid4())  # Generate new session ID
+        st.session_state.messages = []
+        st.session_state.template_used = False
+        st.session_state.current_session_id = str(uuid.uuid4())
         st.rerun()
 
-# Main chat interface.
-st.markdown("### Welcome to Godiva Chatbot!")
+# Main chat interface
+st.markdown("### Welcome to Godiva Chatbot")
 
-# Show template questions only if no chat has started.
-if not st.session_state["messages"] and not st.session_state["template_used"]:
-    st.markdown("<div class='template-box'><strong>Suggested Questions:</strong></div>", unsafe_allow_html=True)
+# Show template questions if no active conversation
+if not st.session_state.messages and not st.session_state.template_used:
+    st.markdown("<div class='template-box'><strong>Suggested Questions:</strong></div>", 
+                unsafe_allow_html=True)
     
-    cols = st.columns(len(template_questions) if len(template_questions) < 5 else 5)  # Max 5 in a row
+    cols = st.columns(5)
     for idx, question in enumerate(template_questions):
-        if cols[idx % 5].button(question, key=f"template_{idx}", help="Click to ask this question", use_container_width=True):
-            st.session_state["pending_input"] = question  # Store for processing
-            st.session_state["template_used"] = True  # Mark templates as used
-            st.rerun()  # Refresh the UI and process question
+        if cols[idx % 5].button(question, key=f"template_{idx}"):
+            st.session_state.pending_input = question
+            st.session_state.template_used = True
+            st.rerun()
 
-# Display existing chat messages.
-for msg in st.session_state["messages"]:
+# Display messages
+for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
 
-# Check if a template question was selected and process it.
-if st.session_state["pending_input"]:
-    user_input = st.session_state["pending_input"]
-    st.session_state["pending_input"] = None  # Clear pending input
+# Process input
+if st.session_state.get("pending_input"):
+    user_input = st.session_state.pending_input
+    st.session_state.pending_input = None
 else:
     user_input = st.chat_input("Ask me anything...")
 
-# Process user input (either from chat input or template selection).
 if user_input:
-    st.session_state["messages"].append({"role": "user", "content": user_input})
+    st.session_state.messages.append({"role": "user", "content": user_input})
+    
     with st.chat_message("user"):
         st.write(user_input)
 
-    # Create a placeholder for the assistant's response.
     assistant_message = st.chat_message("assistant")
     response_placeholder = assistant_message.empty()
 
-    # Function to fetch API response with session ID
+    # API request handling
     response_container = {"response": None}
+    
     def fetch_response():
-                
         try:
-            # Send the current session ID with the request
             payload = {
                 "query": user_input,
-                "session_id": st.session_state["current_session_id"]  # Include session ID
+                "session_id": st.session_state.current_session_id
             }
             
-            # Debug: Add session ID logging
-            print(f"Sending request with session_id: {st.session_state['current_session_id']}")
+            response = requests.post(
+                API_URL, 
+                json=payload, 
+                timeout=90
+            )
             
-            response = requests.post(API_URL, json=payload, timeout=90)
-            response.raise_for_status()
-            response_container["response"] = response.json().get("response", "Service is currently under maintenance. Please try again later.")
-        except Exception as e:
-            print(f"API Error: {str(e)}")
-            response_container["response"] = "Service is currently under maintenance. Please try again later."
+            if response.status_code == 200:
+                response_container["response"] = response.json().get("response", 
+                    "No response received")
+            else:
+                response_container["response"] = "Service temporary unavailable"
 
-    # Start API request in a separate thread.
+        except Exception as e:
+            response_container["response"] = "Connection error. Please try again."
+
+    # Response animation
+    with response_placeholder:
+        with st.spinner("🔍 Analyzing question..."):
+            time.sleep(1.5)
+        with st.spinner("💭 Processing..."):
+            time.sleep(2)
+        with st.spinner("📝 Generating response..."):
+            time.sleep(1)
+
+    # Start request thread
     response_thread = threading.Thread(target=fetch_response)
     response_thread.start()
-
-    # Show first two spinners with fixed time.
-    with response_placeholder:
-        with st.spinner("Analyzing the question..."):
-            time.sleep(3)  # Fixed 3 seconds
-        with st.spinner("Thinking..."):
-            time.sleep(3)  # Fixed 3 seconds
-        with st.spinner("Constructing response..."):
-            time.sleep(2)  # Fixed 2 seconds
-
-        # Infinite spinner for "Generating response..." until API returns.
-        generating_spinner = response_placeholder.empty()
-        while response_thread.is_alive():
-            generating_spinner.write("⏳ Generating response...")
-            time.sleep(0.5)
-
-        generating_spinner.empty()  # Remove the spinner once the response is ready.
-
-    # Ensure the response is fetched completely.
+    
+    # Wait for completion
     response_thread.join()
+    
+    # Display final response
     bot_response = response_container["response"]
-
-    # Display response immediately.
-    st.session_state["messages"].append({"role": "assistant", "content": bot_response})
+    st.session_state.messages.append({"role": "assistant", "content": bot_response})
     response_placeholder.write(bot_response)
-
+    
     st.rerun()
