@@ -46,7 +46,7 @@ def start_chat_api():
             while (time.time() - start_time) < 30:  # 30-second timeout
                 try:
                     # Try hitting health endpoint
-                    response = requests.get("http://94.56.105.18:7898//health", timeout=2)
+                    response = requests.get("http://94.56.105.18:7898/health", timeout=2)
                     if response.status_code == 200:
                         server_ready = True
                         break
@@ -72,7 +72,7 @@ def start_chat_api():
 chat_api_proc = start_chat_api()
 
 # API configuration
-API_URL = "http://94.56.105.18:7898//predict"
+API_URL = "http://94.56.105.18:7898/predict"
 
 # Double check session_id exists (defensive programming)
 if "session_id" not in st.session_state or not st.session_state["session_id"]:
